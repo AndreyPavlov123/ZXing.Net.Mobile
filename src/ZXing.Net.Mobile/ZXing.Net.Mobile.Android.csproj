@@ -36,7 +36,7 @@
     <Reference Include="System.Core" />
     <Reference Include="Mono.Android" />
     <Reference Include="Xamarin.Android.Support.v4">
-      <HintPath>..\..\Samples\Android\Components\xamandroidsupportv4-18-20.0.0.3\lib\android\Xamarin.Android.Support.v4.dll</HintPath>
+      <HintPath>..\Components\xamandroidsupportv4-18-20.0.0.3\lib\android\Xamarin.Android.Support.v4.dll</HintPath>
     </Reference>
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath)\Novell\Novell.MonoDroid.CSharp.targets" />
@@ -53,6 +53,7 @@
     <Compile Include="Android\PlatformChecks.cs" />
     <Compile Include="Common\Performance.cs" />
     <Compile Include="Common\CameraResolution.cs" />
+    <Compile Include="Android\ZxingCustomOverlayView.cs" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Resources\drawable\" />

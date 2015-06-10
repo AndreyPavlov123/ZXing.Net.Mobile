@@ -34,9 +34,14 @@ namespace ZXing.Mobile
 		Action<ZXing.Result> callback;
 		Activity activity;
 
-		public ZXingSurfaceView (Activity activity, MobileBarcodeScanningOptions options, Action<ZXing.Result> callback)
+		public ZXingSurfaceView (Activity activity, MobileBarcodeScanningOptions options, Action<ZXing.Result> callback, 
+			bool scanningEnabled, bool shutdownCameraAfterScanned, bool disableScanningAfterScanned)
 			: base (activity)
 		{
+			_scanningEnabled = scanningEnabled;
+			ShutdownCameraAfterScanned = shutdownCameraAfterScanned;
+			DisableScanningAfterScanned = disableScanningAfterScanned;
+
 			CheckPermissions ();
 
 			this.activity = activity;
@@ -135,7 +140,9 @@ namespace ZXing.Mobile
 				
 				//camera = Android.Hardware.Camera.Open ();
 				camera.SetPreviewDisplay (holder);
-				camera.SetPreviewCallback (this);
+
+				if (_scanningEnabled)
+					camera.SetPreviewCallback (this);
 				
 			} catch (Exception ex) {
 				ShutdownCamera ();
@@ -157,7 +164,6 @@ namespace ZXing.Mobile
 			
 			var parameters = camera.GetParameters ();
 			parameters.PreviewFormat = ImageFormatType.Nv21;
-
 
 			var availableResolutions = new List<CameraResolution> ();
 			foreach (var sps in parameters.SupportedPreviewSizes) {
@@ -237,8 +243,44 @@ namespace ZXing.Mobile
 
 		Task processingTask;
 
+		public bool ShutdownCameraAfterScanned { get; set; }
+
+		public bool DisableScanningAfterScanned { get; set; }
+
+		private volatile bool _scanningEnabled;
+
+		public bool ScanningEnabled 
+		{
+			get 
+			{
+				return _scanningEnabled;
+			}
+			set 
+			{
+				if (_scanningEnabled == value)
+					return;
+				if (camera != null) 
+				{
+					if (value) 
+					{
+						camera.SetPreviewCallback (this);
+						AutoFocus ();
+					} 
+					else 
+					{
+						camera.SetPreviewCallback (null);
+						camera.CancelAutoFocus ();
+					}
+				}
+				_scanningEnabled = value;
+			}
+		}
+
 		public void OnPreviewFrame (byte [] bytes, Android.Hardware.Camera camera)
 		{
+			if (!_scanningEnabled)
+				return;
+
 			//Check and see if we're still processing a previous frame
 			if (processingTask != null && !processingTask.IsCompleted)
 				return;
@@ -256,7 +298,6 @@ namespace ZXing.Mobile
 			{
 				try
 				{
-
 					if (barcodeReader == null)
 					{
 						barcodeReader = new BarcodeReader (null, null, null, (p, w, h, f) => 
@@ -308,30 +349,32 @@ namespace ZXing.Mobile
 				
 					Android.Util.Log.Debug ("ZXing.Mobile", "Barcode Found: " + result.Text);
 				
-					ShutdownCamera ();
+					if (DisableScanningAfterScanned)
+						ScanningEnabled = false;
+					if (ShutdownCameraAfterScanned)
+						ShutdownCamera ();
 
 					callback (result);
-
-
 				}
 				catch (ReaderException)
 				{
 					Android.Util.Log.Debug ("ZXing.Mobile", "No barcode Found");
 					// ignore this exception; it happens every time there is a failed scan
-				
 				}
 				catch (Exception)
 				{
 					// TODO: this one is unexpected.. log or otherwise handle it
 					throw;
 				}
-
 			});
 		}
 		
 		
 		public void OnAutoFocus (bool success, Android.Hardware.Camera camera)
 		{
+			if (!_scanningEnabled)
+				return;
+
 			Android.Util.Log.Debug("ZXing.Mobile", "AutoFocused");
 			
 			System.Threading.Tasks.Task.Factory.StartNew(() => 
@@ -352,14 +395,17 @@ namespace ZXing.Mobile
 		public override bool OnTouchEvent (MotionEvent e)
 		{
 			var r = base.OnTouchEvent(e);
-			
-			AutoFocus();
+			if (_scanningEnabled)
+				AutoFocus();
 			
 			return r;
 		}
 		
 		public void AutoFocus()
 		{
+			if (!_scanningEnabled)
+				return;
+
 			if (camera != null)
 			{
 				if (!tokenSource.IsCancellationRequested)

@@ -15,8 +15,12 @@ namespace ZXing.Mobile
             UseCustomView = false;
 	    }
 
-		public ZXingScannerFragment(Action<Result> scanResultCallback, MobileBarcodeScanningOptions options = null)
+		public ZXingScannerFragment(Action<Result> scanResultCallback, MobileBarcodeScanningOptions options = null, 
+			bool scanningEnabled = true, bool shutdownCameraAfterScanned = true, bool disableScanningAfterScanned = true)
 		{
+			_disableScanningAfterScanned = disableScanningAfterScanned;
+			_shutdownCameraAfterScanned = shutdownCameraAfterScanned;
+			_scanningEnabled = scanningEnabled;
             Callback = scanResultCallback;
 			ScanningOptions = options ?? MobileBarcodeScanningOptions.Default;
 			UseCustomView = false;
@@ -41,7 +45,8 @@ namespace ZXing.Mobile
 
 			try
 			{
-				scanner = new ZXingSurfaceView (this.Activity, ScanningOptions, Callback);
+				scanner = new ZXingSurfaceView (this.Activity, ScanningOptions, Callback, 
+					ScanningEnabled, ShutdownCameraAfterScanning, DisableScanningAfterScanned);
 
 				frame.AddView(scanner, layoutParams);
 
@@ -101,6 +106,51 @@ namespace ZXing.Mobile
 		public void Shutdown()
 		{
 			scanner.ShutdownCamera ();
+		}
+
+		private volatile bool _disableScanningAfterScanned;
+
+		public bool DisableScanningAfterScanned 
+		{
+			get 
+			{
+				return _disableScanningAfterScanned;
+			}
+			set 
+			{
+				_disableScanningAfterScanned = value;
+				scanner.DisableScanningAfterScanned = value;
+			}
+		}
+
+		private volatile bool _shutdownCameraAfterScanned = true;
+
+		public bool ShutdownCameraAfterScanning 
+		{
+			get 
+			{
+				return _shutdownCameraAfterScanned;
+			}
+			set 
+			{
+				_shutdownCameraAfterScanned = value;
+				scanner.ShutdownCameraAfterScanned = value;
+			}
+		}
+
+		private volatile bool _scanningEnabled = true;
+
+		public bool ScanningEnabled 
+		{
+			get 
+			{
+				return _scanningEnabled;
+			}
+			set 
+			{
+				_scanningEnabled = value;
+				scanner.ScanningEnabled = value;
+			}
 		}
 	}
 }
