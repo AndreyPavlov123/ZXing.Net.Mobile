@@ -23,6 +23,7 @@ namespace ZXing.Rendering
    /// <summary>
    /// Renders a <see cref="BitMatrix" /> to a byte array with ARGB 32bit data
    /// </summary>
+   [Obsolete("please use PixelDataRenderer instead")]
    public class RawRenderer : IBarcodeRenderer<byte[]>
    {
       public struct Color

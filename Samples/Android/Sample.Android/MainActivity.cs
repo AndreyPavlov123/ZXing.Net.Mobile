@@ -14,6 +14,7 @@ namespace Sample.Android
 	{
 		Button buttonScanCustomView;
 		Button buttonScanDefaultView;
+        Button buttonContinuousScan;
 		Button buttonFragmentScanner;
 
 		MobileBarcodeScanner scanner;
@@ -22,11 +23,14 @@ namespace Sample.Android
 		{
 			base.OnCreate (bundle);
 
+            // Initialize the scanner first so we can track the current context
+            MobileBarcodeScanner.Initialize (Application);
+
 			// Set our view from the "main" layout resource
 			SetContentView (Resource.Layout.Main);
 
 			//Create a new instance of our Scanner
-			scanner = new MobileBarcodeScanner(this);
+			scanner = new MobileBarcodeScanner();
 
 			buttonScanDefaultView = this.FindViewById<Button>(Resource.Id.buttonScanDefaultView);
 			buttonScanDefaultView.Click += async delegate {
@@ -43,6 +47,22 @@ namespace Sample.Android
 
 				HandleScanResult(result);
 			};
+
+            buttonContinuousScan = FindViewById<Button> (Resource.Id.buttonScanContinuous);
+            buttonContinuousScan.Click += delegate {
+
+                scanner.UseCustomOverlay = false;
+
+                //We can customize the top and bottom text of the default overlay
+                scanner.TopText = "Hold the camera up to the barcode\nAbout 6 inches away";
+                scanner.BottomText = "Wait for the barcode to automatically scan!";
+
+                var opt = new MobileBarcodeScanningOptions ();
+                opt.DelayBetweenContinuousScans = 3000;
+
+                //Start scanning
+                scanner.ScanContinuously(opt, HandleScanResult);
+            };
 
 			Button flashButton;
 			View zxingOverlay;
