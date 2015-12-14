@@ -12,20 +12,20 @@
     <GenerateSerializationAssemblies>Off</GenerateSerializationAssemblies>
     <RootNamespace>ZXing.Mobile</RootNamespace>
     <AssemblyName>ZXing.Net.Mobile</AssemblyName>
-    <TargetFrameworkVersion>v2.3</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.0.3</TargetFrameworkVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <DebugType>none</DebugType>
     <Optimize>False</Optimize>
-    <OutputPath>..\..\Build\Debug\monodroid\</OutputPath>
+    <OutputPath>..\..\Build\Debug\android\</OutputPath>
     <WarningLevel>4</WarningLevel>
     <AndroidLinkMode>None</AndroidLinkMode>
     <DefineConstants>MONODROID;DEBUG</DefineConstants>
+    <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>none</DebugType>
     <Optimize>False</Optimize>
-    <OutputPath>..\..\Build\Release\monodroid\</OutputPath>
+    <OutputPath>..\..\Build\Release\android\</OutputPath>
     <WarningLevel>4</WarningLevel>
     <AndroidUseSharedRuntime>False</AndroidUseSharedRuntime>
     <DefineConstants>MONODROID</DefineConstants>
@@ -37,6 +37,7 @@
     <Reference Include="Mono.Android" />
     <Reference Include="Xamarin.Android.Support.v4">
       <HintPath>..\Components\xamandroidsupportv4-18-20.0.0.3\lib\android\Xamarin.Android.Support.v4.dll</HintPath>
+      <HintPath>..\..\packages\Xamarin.Android.Support.v4.22.2.0.0\lib\MonoAndroid403\Xamarin.Android.Support.v4.dll</HintPath>
     </Reference>
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath)\Novell\Novell.MonoDroid.CSharp.targets" />
@@ -45,7 +46,6 @@
     <Compile Include="Resources\Resource.designer.cs" />
     <Compile Include="Android\ZxingActivity.cs" />
     <Compile Include="Android\ZxingOverlayView.cs" />
-    <Compile Include="Android\ZxingScanner.cs" />
     <Compile Include="Android\ZXingScannerFragment.cs" />
     <Compile Include="Android\ZXingSurfaceView.cs" />
     <Compile Include="Common\IMobileBarcodeScanner.cs" />
@@ -54,16 +54,12 @@
     <Compile Include="Common\Performance.cs" />
     <Compile Include="Common\CameraResolution.cs" />
     <Compile Include="Android\ZxingCustomOverlayView.cs" />
+    <Compile Include="Android\ActivityLifecycleContextListener.cs" />
+    <Compile Include="Android\MobileBarcodeScanner.cs" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Resources\drawable\" />
     <Folder Include="Resources\values\" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\ZXing.Net\zxing.monoandroid.csproj">
-      <Project>{8971B59D-78F1-49BA-808D-CBADB37F571F}</Project>
-      <Name>zxing.monoandroid</Name>
-    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <AndroidResource Include="Resources\layout\zxingscanneractivitylayout.axml" />
@@ -74,5 +70,14 @@
       <Version>20.0.0.3</Version>
       <Visible>False</Visible>
     </XamarinComponentReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ZXing.Net\zxing.portable.csproj">
+      <Project>{24B441F2-CBE9-4405-9FD0-72EBCBEA0EC3}</Project>
+      <Name>zxing.portable</Name>
+    </ProjectReference>
   </ItemGroup>
 </Project>

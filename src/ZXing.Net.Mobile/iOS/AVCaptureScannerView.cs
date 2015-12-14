@@ -61,6 +61,8 @@ namespace ZXing.Mobile
 		UIView layerView;
 		UIView overlayView = null;
 
+        public event Action OnCancelButtonPressed;
+
 		public string CancelButtonText { get;set; }
 		public string FlashButtonText { get;set; }
 
@@ -71,12 +73,17 @@ namespace ZXing.Mobile
 			if (overlayView != null)
 				overlayView.RemoveFromSuperview ();
 
-			if (UseCustomOverlayView && CustomOverlayView != null)
-				overlayView = CustomOverlayView;
-			else
-				overlayView = new ZXingDefaultOverlayView (new CGRect(0, 0, this.Frame.Width, this.Frame.Height),
-					TopText, BottomText, CancelButtonText, FlashButtonText,
-					() => { StopScanning (); resultCallback (null); }, ToggleTorch);
+            if (UseCustomOverlayView && CustomOverlayView != null)
+                overlayView = CustomOverlayView;
+            else {
+                overlayView = new ZXingDefaultOverlayView (new CGRect (0, 0, this.Frame.Width, this.Frame.Height),
+                    TopText, BottomText, CancelButtonText, FlashButtonText,
+                    () => {
+                        var evt = OnCancelButtonPressed;
+                        if (evt != null)
+                            evt();
+                    }, ToggleTorch);
+            }
 
 			if (overlayView != null)
 			{
@@ -194,6 +201,7 @@ namespace ZXing.Mobile
 			//Setup barcode formats
 			if (ScanningOptions.PossibleFormats != null && ScanningOptions.PossibleFormats.Count > 0)
 			{
+                #if __UNIFIED__
                 var formats = AVMetadataObjectType.None;
 
                 foreach (var f in ScanningOptions.PossibleFormats)
@@ -202,6 +210,14 @@ namespace ZXing.Mobile
                 formats &= ~AVMetadataObjectType.None;
 
                 metadataOutput.MetadataObjectTypes = formats;
+                #else
+                var formats = new List<string> ();
+
+                foreach (var f in ScanningOptions.PossibleFormats)
+                    formats.AddRange (AVCaptureBarcodeFormatFromZXingBarcodeFormat (f));
+
+                metadataOutput.MetadataObjectTypes = (from f in formats.Distinct () select new NSString(f)).ToArray();
+                #endif
 			}
 			else
 				metadataOutput.MetadataObjectTypes = metadataOutput.AvailableMetadataObjectTypes;
@@ -328,7 +344,7 @@ namespace ZXing.Mobile
 
 			previewLayer.Frame = new CGRect(0, 0, this.Frame.Width, this.Frame.Height);
 
-			if (previewLayer.RespondsToSelector (new Selector ("connection")))
+            if (previewLayer.RespondsToSelector (new Selector ("connection")) && previewLayer.Connection != null)
 			{
 				switch (orientation)
 				{
@@ -547,6 +563,7 @@ namespace ZXing.Mobile
 			return BarcodeFormat.QR_CODE;
 		}
 
+        #if __UNIFIED__
 		AVMetadataObjectType AVCaptureBarcodeFormatFromZXingBarcodeFormat(BarcodeFormat zxingBarcodeFormat)
 		{
             AVMetadataObjectType formats = AVMetadataObjectType.None;
@@ -608,6 +625,69 @@ namespace ZXing.Mobile
 
             return formats;
 		}
+        #else
+        string[] AVCaptureBarcodeFormatFromZXingBarcodeFormat(BarcodeFormat zxingBarcodeFormat)
+        {
+            List<string> formats = new List<string> ();
+
+            switch (zxingBarcodeFormat)
+            {
+            case BarcodeFormat.AZTEC:
+                formats.Add (AVMetadataObject.TypeAztecCode);
+                break;
+            case BarcodeFormat.CODE_128:
+                formats.Add (AVMetadataObject.TypeCode128Code);
+                break;
+            case BarcodeFormat.CODE_39:
+                formats.Add (AVMetadataObject.TypeCode39Code);
+                formats.Add (AVMetadataObject.TypeCode39Mod43Code);
+                break;
+            case BarcodeFormat.CODE_93:
+                formats.Add (AVMetadataObject.TypeCode93Code);
+                break;
+            case BarcodeFormat.EAN_13:
+                formats.Add (AVMetadataObject.TypeEAN13Code);
+                break;
+            case BarcodeFormat.EAN_8:
+                formats.Add (AVMetadataObject.TypeEAN8Code);
+                break;
+            case BarcodeFormat.PDF_417:
+                formats.Add (AVMetadataObject.TypePDF417Code);
+                break;
+            case BarcodeFormat.QR_CODE:
+                formats.Add (AVMetadataObject.TypeQRCode);
+                break;
+            case BarcodeFormat.UPC_E:
+                formats.Add (AVMetadataObject.TypeUPCECode);
+                break;
+            case BarcodeFormat.All_1D:
+                formats.Add (AVMetadataObject.TypeUPCECode);
+                formats.Add (AVMetadataObject.TypeEAN13Code);
+                formats.Add (AVMetadataObject.TypeEAN8Code);
+                formats.Add (AVMetadataObject.TypeCode39Code);
+                formats.Add (AVMetadataObject.TypeCode39Mod43Code);
+                formats.Add (AVMetadataObject.TypeCode93Code);
+                break;
+            case BarcodeFormat.DATA_MATRIX:
+                formats.Add (AVMetadataObject.TypeDataMatrixCode);
+                break;
+            case BarcodeFormat.ITF:
+                formats.Add (AVMetadataObject.TypeITF14Code);
+                break;
+            case BarcodeFormat.CODABAR:                        
+            case BarcodeFormat.MAXICODE:
+            case BarcodeFormat.MSI:
+            case BarcodeFormat.PLESSEY:
+            case BarcodeFormat.RSS_14:
+            case BarcodeFormat.RSS_EXPANDED:
+            case BarcodeFormat.UPC_A:
+                //TODO: Throw exception?
+                break;
+            }
+
+            return formats.ToArray();
+        }
+        #endif
 	}
 
 

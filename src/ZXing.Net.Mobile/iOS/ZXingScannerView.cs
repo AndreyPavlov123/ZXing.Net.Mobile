@@ -62,6 +62,7 @@ namespace ZXing.Mobile
 		UIView layerView;
 		UIView overlayView = null;
 
+        public event Action OnCancelButtonPressed;
 
 		public string CancelButtonText { get;set; }
 		public string FlashButtonText { get;set; }
@@ -75,12 +76,17 @@ namespace ZXing.Mobile
 			if (overlayView != null)
 				overlayView.RemoveFromSuperview ();
 
-			if (UseCustomOverlayView && CustomOverlayView != null)
-				overlayView = CustomOverlayView;
-			else
-				overlayView = new ZXingDefaultOverlayView (new CGRect(0, 0, this.Frame.Width, this.Frame.Height),
-				                                          TopText, BottomText, CancelButtonText, FlashButtonText,
-				                                          () => { StopScanning (); resultCallback (null); }, ToggleTorch);
+            if (UseCustomOverlayView && CustomOverlayView != null)
+                overlayView = CustomOverlayView;
+            else {
+                overlayView = new ZXingDefaultOverlayView (new CGRect (0, 0, this.Frame.Width, this.Frame.Height),
+                    TopText, BottomText, CancelButtonText, FlashButtonText,
+                    () => {
+                        var evt = OnCancelButtonPressed;
+                        if (evt != null)
+                            evt();
+                    }, ToggleTorch);
+            }
 
 			if (overlayView != null)
 			{
@@ -276,9 +282,9 @@ namespace ZXing.Mobile
 			// configure the output
 			queue = new DispatchQueue("ZxingScannerView"); // (Guid.NewGuid().ToString());
 
-			var barcodeReader = new BarcodeReader(null, (img) => 	
+			var barcodeReader = new BarcodeReaderiOS(null, (img) => 	
 			{
-				var src = new RGBLuminanceSource(img); //, bmp.Width, bmp.Height);
+				var src = new RGBLuminanceSourceiOS(img); //, bmp.Width, bmp.Height);
 
 				//Don't try and rotate properly if we're autorotating anyway
 				if (ScanningOptions.AutoRotate.HasValue && ScanningOptions.AutoRotate.Value)
@@ -331,26 +337,30 @@ namespace ZXing.Mobile
 			outputRecorder = new OutputRecorder (ScanningOptions, img => 
 			{
 				if (!IsAnalyzing)
-					return;
+					return false;
 
 				try
 				{
 					//var sw = new System.Diagnostics.Stopwatch();
 					//sw.Start();
 
-					var rs = barcodeReader.Decode(img);
+                    var rs = barcodeReader.Decode(img);
 
 					//sw.Stop();
 
 					//Console.WriteLine("Decode Time: {0} ms", sw.ElapsedMilliseconds);
 
-					if (rs != null)
+                    if (rs != null) {
 						resultCallback(rs);
+                        return true;
+                    }
 				}
 				catch (Exception ex)
 				{
 					Console.WriteLine("DECODE FAILED: " + ex);
 				}
+
+                return false;
 			});
 
 			output.AlwaysDiscardsLateVideoFrames = true;
@@ -418,7 +428,7 @@ namespace ZXing.Mobile
 
 			previewLayer.Frame = new CGRect (0, 0, this.Frame.Width, this.Frame.Height);
 
-			if (previewLayer.RespondsToSelector (new Selector ("connection")))
+			if (previewLayer.RespondsToSelector (new Selector ("connection")) && previewLayer.Connection != null)
 			{
 				switch (orientation)
 				{
@@ -469,17 +479,18 @@ namespace ZXing.Mobile
 
 		public class OutputRecorder : AVCaptureVideoDataOutputSampleBufferDelegate 
 		{
-			public OutputRecorder(MobileBarcodeScanningOptions options, Action<UIImage> handleImage) : base()
+			public OutputRecorder(MobileBarcodeScanningOptions options, Func<UIImage, bool> handleImage) : base()
 			{
 				HandleImage = handleImage;
 				this.options = options;
 			}
 
 			MobileBarcodeScanningOptions options;
-			Action<UIImage> HandleImage;
+			Func<UIImage, bool> HandleImage;
 
 			DateTime lastAnalysis = DateTime.MinValue;
 			volatile bool working = false;
+            volatile bool wasScanned = false;
 
 			[Export ("captureOutput:didDropSampleBuffer:fromConnection:")]
 			public void DidDropSampleBuffer(AVCaptureOutput captureOutput, CMSampleBuffer sampleBuffer, AVCaptureConnection connection)
@@ -492,7 +503,11 @@ namespace ZXing.Mobile
 
 			public override void DidOutputSampleBuffer (AVCaptureOutput captureOutput, CMSampleBuffer sampleBuffer, AVCaptureConnection connection)
 			{
-				if ((DateTime.UtcNow - lastAnalysis).TotalMilliseconds < options.DelayBetweenAnalyzingFrames || working
+                var msSinceLastPreview = (DateTime.UtcNow - lastAnalysis).TotalMilliseconds;
+                    
+				if ((DateTime.UtcNow - lastAnalysis).TotalMilliseconds < options.DelayBetweenAnalyzingFrames 
+                    || (wasScanned && msSinceLastPreview < options.DelayBetweenContinuousScans)
+                    || working
 				    || CancelTokenSource.IsCancellationRequested)
 				{
 					if (sampleBuffer != null)
@@ -503,16 +518,15 @@ namespace ZXing.Mobile
 					return;
 				}
 
-
+                wasScanned = false;
 				working = true;
-				//Console.WriteLine("SAMPLE");
-
 				lastAnalysis = DateTime.UtcNow;
 
 				try 
 				{
 					using (var image = ImageFromSampleBuffer (sampleBuffer))
-						HandleImage(image);
+                        if (HandleImage(image))
+                            wasScanned = true;
 					
 					//
 					// Although this looks innocent "Oh, he is just optimizing this case away"
@@ -548,7 +562,7 @@ namespace ZXing.Mobile
 					var flags = CGBitmapFlags.PremultipliedFirst | CGBitmapFlags.ByteOrder32Little;
 					// Create a CGImage on the RGB colorspace from the configured parameter above
 					using (var cs = CGColorSpace.CreateDeviceRGB ())
-					using (var context = new CGBitmapContext (baseAddress, (int)width, (int)height, 8, (int)bytesPerRow, cs, (CGImageAlphaInfo) flags))
+					using (var context = new CGBitmapContext (baseAddress, width, height, 8, bytesPerRow, cs, (CGImageAlphaInfo) flags))
 					using (var cgImage = context.ToImage ())
 					{
 						pixelBuffer.Unlock (0);
